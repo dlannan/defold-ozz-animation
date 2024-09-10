@@ -1,7 +1,7 @@
-// myextension.cpp
+// ozz.cpp
 // Extension lib defines
-#define LIB_NAME "MyExtension"
-#define MODULE_NAME "myextension"
+#define LIB_NAME "ozz"
+#define MODULE_NAME "ozz"
 
 // include the Defold SDK
 #include <dmsdk/sdk.h>
@@ -49,13 +49,13 @@ static void LuaInit(lua_State* L)
     assert(top == lua_gettop(L));
 }
 
-static dmExtension::Result AppInitializeMyExtension(dmExtension::AppParams* params)
+static dmExtension::Result AppInitializeozz(dmExtension::AppParams* params)
 {
-    dmLogInfo("AppInitializeMyExtension");
+    dmLogInfo("AppInitializeozz");
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result InitializeMyExtension(dmExtension::Params* params)
+static dmExtension::Result Initializeozz(dmExtension::Params* params)
 {
     // Init Lua
     LuaInit(params->m_L);
@@ -63,42 +63,42 @@ static dmExtension::Result InitializeMyExtension(dmExtension::Params* params)
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result AppFinalizeMyExtension(dmExtension::AppParams* params)
+static dmExtension::Result AppFinalizeozz(dmExtension::AppParams* params)
 {
-    dmLogInfo("AppFinalizeMyExtension");
+    dmLogInfo("AppFinalizeozz");
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result FinalizeMyExtension(dmExtension::Params* params)
+static dmExtension::Result Finalizeozz(dmExtension::Params* params)
 {
-    dmLogInfo("FinalizeMyExtension");
+    dmLogInfo("Finalizeozz");
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result OnUpdateMyExtension(dmExtension::Params* params)
+static dmExtension::Result OnUpdateozz(dmExtension::Params* params)
 {
-    dmLogInfo("OnUpdateMyExtension");
+    dmLogInfo("OnUpdateozz");
     return dmExtension::RESULT_OK;
 }
 
-static void OnEventMyExtension(dmExtension::Params* params, const dmExtension::Event* event)
+static void OnEventozz(dmExtension::Params* params, const dmExtension::Event* event)
 {
     switch(event->m_Event)
     {
         case dmExtension::EVENT_ID_ACTIVATEAPP:
-            dmLogInfo("OnEventMyExtension - EVENT_ID_ACTIVATEAPP");
+            dmLogInfo("OnEventozz - EVENT_ID_ACTIVATEAPP");
             break;
         case dmExtension::EVENT_ID_DEACTIVATEAPP:
-            dmLogInfo("OnEventMyExtension - EVENT_ID_DEACTIVATEAPP");
+            dmLogInfo("OnEventozz - EVENT_ID_DEACTIVATEAPP");
             break;
         case dmExtension::EVENT_ID_ICONIFYAPP:
-            dmLogInfo("OnEventMyExtension - EVENT_ID_ICONIFYAPP");
+            dmLogInfo("OnEventozz - EVENT_ID_ICONIFYAPP");
             break;
         case dmExtension::EVENT_ID_DEICONIFYAPP:
-            dmLogInfo("OnEventMyExtension - EVENT_ID_DEICONIFYAPP");
+            dmLogInfo("OnEventozz - EVENT_ID_DEICONIFYAPP");
             break;
         default:
-            dmLogWarning("OnEventMyExtension - Unknown event id");
+            dmLogWarning("OnEventozz - Unknown event id");
             break;
     }
 }
@@ -107,6 +107,6 @@ static void OnEventMyExtension(dmExtension::Params* params, const dmExtension::E
 //
 // DM_DECLARE_EXTENSION(symbol, name, app_init, app_final, init, update, on_event, final)
 
-// MyExtension is the C++ symbol that holds all relevant extension data.
+// ozz is the C++ symbol that holds all relevant extension data.
 // It must match the name field in the `ext.manifest`
-DM_DECLARE_EXTENSION(MyExtension, LIB_NAME, AppInitializeMyExtension, AppFinalizeMyExtension, InitializeMyExtension, OnUpdateMyExtension, OnEventMyExtension, FinalizeMyExtension)
+DM_DECLARE_EXTENSION(ozz, LIB_NAME, AppInitializeozz, AppFinalizeozz, Initializeozz, OnUpdateozz, OnEventozz, Finalizeozz)

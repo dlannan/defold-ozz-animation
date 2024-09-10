@@ -14,7 +14,9 @@ package = com.defold.example.basic3d
 
 [project]
 dependencies = 
-title = Basic3D
+title = OZZ Animation Extension
+developer = David Lannan
+publisher = Kakutai Pty Ltd
 
 [physics]
 type = 3D

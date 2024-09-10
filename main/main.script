@@ -17,6 +17,8 @@ function init(self)
 	go.set("#cube", "light", self.light)
 	go.set("#quad", "light", self.light)
 	go.set("#sphere", "light", self.light)
+
+	pprint(ozz.reverse("123456"))
 end
 
 function on_input(self, action_id, action)
