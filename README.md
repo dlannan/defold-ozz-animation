@@ -33,7 +33,7 @@ Additionally, the standalone Animation editor I want to build with Defold. The p
 
 ## Todo
 
-- [ ] Load in skeletons, anims and meshes
+- [X] Load in skeletons, anims and meshes
 - [ ] Create defold mesh from ozz mesh
 - [ ] Editor tool to convert gltf to ozz skeleton, anim and mesh
 - [ ] Editor tool to convert fbx to ozz skeleton, anim and mesh
