@@ -34,19 +34,19 @@
 
 typedef struct animObj
 {
-    std::string     skeleton_filename;
-    std::string     animation_filename;
-    std::string     mesh_filename;
+    std::string                             skeleton_filename;
+    std::string                             animation_filename;
+    std::string                             mesh_filename;
 
-    int             num_joints;
+    int                                     num_joints;
 
-    ozz::vector<game::Mesh>                 meshes;
-
-    game::PlaybackController                controller;
-    
     ozz::animation::Skeleton                skeleton;
     ozz::animation::Animation               animations;
+    ozz::vector<game::Mesh>                 meshes;
+
+    game::PlaybackController                controller;    
     ozz::animation::SamplingJob::Context    context;
+
     ozz::vector<ozz::math::SoaTransform>    locals;
     
     ozz::vector<ozz::math::Float4x4>        models;    
@@ -114,6 +114,12 @@ static int LoadOzz(lua_State* L)
         return 1;
     }    
 
+    printf("----------------------------------------\n");
+    printf("-- Animation Data --\n");
+    printf("Numjoints: %d\n", anim->skeleton.num_joints());
+    printf("NumTracks: %d\n", anim->animations.num_tracks());
+    printf("Animations: %d\n", (int)anim->animations.size());
+    
     int idx = g_anims.size();
     g_anims.push_back(anim);
 
@@ -174,6 +180,7 @@ static int LoadMeshes( lua_State *L)
       }
     }
 
+printf("Mesh count: %d\n", (int)anim->meshes.size());
     for (const game::Mesh& mesh : anim->meshes) 
     {
         printf("----------------------------------------\n");
