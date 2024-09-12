@@ -23,7 +23,7 @@ https://github.com/piti6/UnityGpuInstancedAnimation
 
 This will be something I will tackle once I have the basics working. 
 
-Additionally, the standalone Animation editor I want to build with Defold. The project will be a derivative of this extension project since it will use it :)
+The standalone Animation editor I want to build with Defold will be a derivative of this extension project. Thus it is expected to be one of the last task items I will tackle.
 
 ## Status
 
