@@ -19,7 +19,9 @@ function init(self)
 	go.set("#sphere", "light", self.light)
 
 	self.anim = ozzanim.loadozz("assets/ozz/ruby_skeleton.ozz", "assets/ozz/ruby_animation.ozz")
-	ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
+	local test = ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
+	pprint(ozzanim.getmeshbounds(self.anim))
+	pprint(ozzanim.getskinnedbounds(self.anim))
 end
 
 function on_input(self, action_id, action)

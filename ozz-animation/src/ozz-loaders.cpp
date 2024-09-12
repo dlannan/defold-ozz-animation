@@ -84,8 +84,7 @@ bool LoadMeshes(const char* _filename, ozz::vector<game::Mesh>* _meshes) {
                     << std::endl;
     return false;
   }
-  ozz::io::IArchive archive(&file);
-
+  ozz::io::IArchive archive(&file);  
   {
     // ProfileFctLog profile{"Meshes loading time"};
     while (archive.TestTag<game::Mesh>()) {
@@ -93,7 +92,6 @@ bool LoadMeshes(const char* _filename, ozz::vector<game::Mesh>* _meshes) {
       archive >> _meshes->back();
     }
   }
-
   return true;
 }
 

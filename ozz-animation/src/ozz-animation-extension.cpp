@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "mesh/mesh.h"
+#include "controller/controller.h"
 
 #include "ozz/animation/runtime/animation.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
@@ -23,6 +24,8 @@
 #include "ozz/base/maths/math_ex.h"
 #include "ozz/base/maths/soa_transform.h"
 #include "ozz/base/maths/vec_float.h"
+#include "ozz/base/maths/box.h"
+#include "ozz/base/span.h"
 #include "ozz/options/options.h"
 
 // TODO: 
@@ -38,16 +41,20 @@ typedef struct animObj
     int             num_joints;
 
     ozz::vector<game::Mesh>                 meshes;
+
+    game::PlaybackController                controller;
     
     ozz::animation::Skeleton                skeleton;
     ozz::animation::Animation               animations;
     ozz::animation::SamplingJob::Context    context;
     ozz::vector<ozz::math::SoaTransform>    locals;
+    
     ozz::vector<ozz::math::Float4x4>        models;    
     ozz::vector<ozz::math::Float4x4>        skinning_matrices;
 } _animObj;
     
 static std::vector<animObj *> g_anims;
+static uint64_t g_last_time = 0;
 
 extern bool LoadSkeleton(const char* _filename, ozz::animation::Skeleton* _skeleton);
 extern bool LoadAnimation(const char* _filename, ozz::animation::Animation* _animation);
@@ -167,8 +174,109 @@ static int LoadMeshes( lua_State *L)
       }
     }
 
+    for (const game::Mesh& mesh : anim->meshes) 
+    {
+        printf("----------------------------------------\n");
+        printf("Vertices: %d\n", mesh.vertex_count());
+        printf("Indices: %d\n", mesh.triangle_index_count());
+        printf("Max Influences: %d\n", mesh.max_influences_count());
+        printf("Skinned: %d\n", (mesh.skinned() == true)?1:0);
+        printf("Number of Joints: %d\n", mesh.num_joints());      
+        printf("----------------------------------------\n");
+    }
+
     lua_pushnumber(L, idx);
     return 1;
+}
+
+static int GetMeshBounds(lua_State *L)
+{
+    int idx = luaL_checknumber(L,1);
+    if( idx < 0 || idx >= g_anims.size()) {
+        printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    animObj *anim = g_anims[idx];
+
+    // Set a default box.
+    ozz::math::Box _bound =  ozz::math::Box();   
+    if (anim->models.empty()) {
+        printf("[LoadOzz Error] GetMeshBounds: No models in anim!\n");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Loops through matrices and stores min/max.
+    // Matrices array cannot be empty, it was checked at the beginning of the
+    // function.
+    auto current = anim->models.begin();
+    ozz::math::SimdFloat4 min = current->cols[3];
+    ozz::math::SimdFloat4 max = current->cols[3];
+    ++current;
+    while (current < anim->models.end()) {
+        min = ozz::math::Min(min, current->cols[3]);
+        max = ozz::math::Max(max, current->cols[3]);
+        ++current;
+    }
+
+    // Stores in math::Box structure.
+    ozz::math::Store3PtrU(min, &_bound.min.x);
+    ozz::math::Store3PtrU(max, &_bound.max.x);
+
+    lua_pushnumber(L, _bound.min.x);
+    lua_pushnumber(L, _bound.min.y);
+    lua_pushnumber(L, _bound.min.z);
+    lua_pushnumber(L, _bound.max.x);
+    lua_pushnumber(L, _bound.max.y);
+    lua_pushnumber(L, _bound.max.z);
+    return 6;
+}
+
+static int GetSkinnedBounds(lua_State *L)
+{
+    int idx = luaL_checknumber(L,1);
+    if( idx < 0 || idx >= g_anims.size()) {
+        printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    animObj *anim = g_anims[idx];
+
+    // Set a default box.
+    ozz::math::Box _bound =  ozz::math::Box();   
+    if (anim->skinning_matrices.empty()) {
+        printf("[LoadOzz Error] GetSkinnedBounds: No skinned meshes in anim!\n");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Loops through matrices and stores min/max.
+    // Matrices array cannot be empty, it was checked at the beginning of the
+    // function.
+    auto current = anim->skinning_matrices.begin();
+    ozz::math::SimdFloat4 min = current->cols[3];
+    ozz::math::SimdFloat4 max = current->cols[3];
+    ++current;
+    while (current < anim->skinning_matrices.end()) {
+        min = ozz::math::Min(min, current->cols[3]);
+        max = ozz::math::Max(max, current->cols[3]);
+        ++current;
+    }
+
+    // Stores in math::Box structure.
+    ozz::math::Store3PtrU(min, &_bound.min.x);
+    ozz::math::Store3PtrU(max, &_bound.max.x);
+
+    lua_pushnumber(L, _bound.min.x);
+    lua_pushnumber(L, _bound.min.y);
+    lua_pushnumber(L, _bound.min.z);
+    lua_pushnumber(L, _bound.max.x);
+    lua_pushnumber(L, _bound.max.y);
+    lua_pushnumber(L, _bound.max.z);
+    return 6;
 }
 
 // Functions exposed to Lua
@@ -176,6 +284,8 @@ static const luaL_reg Module_methods[] =
 {
     {"loadozz", LoadOzz},
     {"loadmesh", LoadMeshes},
+    {"getmeshbounds", GetMeshBounds},
+    {"getskinnedbounds", GetSkinnedBounds},
     {0, 0}
 };
 
@@ -200,6 +310,7 @@ static dmExtension::Result Initializeozzanim(dmExtension::Params* params)
 {
     // Init Lua
     LuaInit(params->m_L);
+    g_last_time = dmTime::GetTime();
     dmLogInfo("Registered %s Extension", MODULE_NAME);
     return dmExtension::RESULT_OK;
 }
@@ -222,28 +333,33 @@ static dmExtension::Result Finalizeozzanim(dmExtension::Params* params)
 
 static dmExtension::Result OnUpdateozzanim(dmExtension::Params* params)
 {
+    double dt = ((double)( dmTime::GetTime() - g_last_time ) / 1000000.0);
+    g_last_time = dmTime::GetTime();
+    // printf("Test dt: %g\n", dt);
+ 
     for(size_t i=0; i<g_anims.size(); ++i)
     {
+        animObj *anim = g_anims[i];
         // Updates current animation time.
-        controller_.Update(animation_, _dt);
+        anim->controller.Update(anim->animations, dt);
 
         // Samples optimized animation at t = animation_time_.
         ozz::animation::SamplingJob sampling_job;
-        sampling_job.animation = &animation_;
-        sampling_job.context = &context_;
-        sampling_job.ratio = controller_.time_ratio();
-        sampling_job.output = make_span(locals_);
+        sampling_job.animation = &anim->animations;
+        sampling_job.context = &anim->context;
+        sampling_job.ratio = anim->controller.time_ratio();
+        sampling_job.output = make_span(anim->locals);
         if (!sampling_job.Run()) {
-        return false;
+            dmExtension::RESULT_INIT_ERROR  ;
         }
 
         // Converts from local space to model space matrices.
         ozz::animation::LocalToModelJob ltm_job;
-        ltm_job.skeleton = &skeleton_;
-        ltm_job.input = make_span(locals_);
-        ltm_job.output = make_span(models_);
+        ltm_job.skeleton = &anim->skeleton;
+        ltm_job.input = make_span(anim->locals);
+        ltm_job.output = make_span(anim->models);
         if (!ltm_job.Run()) {
-        return false;
+            dmExtension::RESULT_INIT_ERROR  ;
         }
     }
     return dmExtension::RESULT_OK;
