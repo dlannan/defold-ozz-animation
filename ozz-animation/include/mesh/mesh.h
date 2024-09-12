@@ -120,7 +120,7 @@ namespace game
 namespace ozz {
 namespace io {
 
-OZZ_IO_TYPE_TAG("ozz-Mesh-Part", game::Mesh::Part)
+OZZ_IO_TYPE_TAG("ozz-sample-Mesh-Part", game::Mesh::Part)
 OZZ_IO_TYPE_VERSION(1, game::Mesh::Part)
 
 template <>
@@ -131,7 +131,7 @@ struct Extern<game::Mesh::Part> {
                    size_t _count, uint32_t _version);
 };
 
-OZZ_IO_TYPE_TAG("ozz-Mesh", game::Mesh)
+OZZ_IO_TYPE_TAG("ozz-sample-Mesh", game::Mesh)
 OZZ_IO_TYPE_VERSION(1, game::Mesh)
 
 template <>
