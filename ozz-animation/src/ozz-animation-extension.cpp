@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "mesh/mesh.h"
+
 #include "ozz/animation/runtime/animation.h"
 #include "ozz/animation/runtime/local_to_model_job.h"
 #include "ozz/animation/runtime/sampling_job.h"
@@ -16,74 +18,40 @@
 #include "ozz/base/io/stream.h"
 #include "ozz/base/log.h"
 #include "ozz/base/containers/vector.h"
+#include "ozz/base/containers/vector_archive.h"
 #include "ozz/base/maths/simd_math.h"
+#include "ozz/base/maths/math_ex.h"
 #include "ozz/base/maths/soa_transform.h"
 #include "ozz/base/maths/vec_float.h"
 #include "ozz/options/options.h"
+
+// TODO: 
+//    Make this more of a reference container so meshes, animations and skeletons
+//    are only loaded once rather than for each instance.
 
 typedef struct animObj
 {
     std::string     skeleton_filename;
     std::string     animation_filename;
+    std::string     mesh_filename;
 
-    ozz::animation::Skeleton skeleton;
-    ozz::animation::Animation animations;
-    ozz::animation::SamplingJob::Context context;
-    ozz::vector<ozz::math::SoaTransform> locals;
-    ozz::vector<ozz::math::Float4x4> models;    
+    int             num_joints;
+
+    ozz::vector<game::Mesh>                 meshes;
+    
+    ozz::animation::Skeleton                skeleton;
+    ozz::animation::Animation               animations;
+    ozz::animation::SamplingJob::Context    context;
+    ozz::vector<ozz::math::SoaTransform>    locals;
+    ozz::vector<ozz::math::Float4x4>        models;    
+    ozz::vector<ozz::math::Float4x4>        skinning_matrices;
 } _animObj;
     
 static std::vector<animObj *> g_anims;
 
-bool LoadSkeleton(const char* _filename, ozz::animation::Skeleton* _skeleton) {
-  assert(_filename && _skeleton);
-  ozz::log::Out() << "Loading skeleton archive " << _filename << "."
-                  << std::endl;
-  ozz::io::File file(_filename, "rb");
-  if (!file.opened()) {
-    ozz::log::Err() << "Failed to open skeleton file " << _filename << "."
-                    << std::endl;
-    return false;
-  }
-  ozz::io::IArchive archive(&file);
-  if (!archive.TestTag<ozz::animation::Skeleton>()) {
-    ozz::log::Err() << "Failed to load skeleton instance from file "
-                    << _filename << "." << std::endl;
-    return false;
-  }
-
-  // Once the tag is validated, reading cannot fail.
-  {
-    archive >> *_skeleton;
-  }
-  return true;
-}
-
-bool LoadAnimation(const char* _filename, ozz::animation::Animation* _animation) {
-  assert(_filename && _animation);
-  ozz::log::Out() << "Loading animation archive: " << _filename << "."
-                  << std::endl;
-  ozz::io::File file(_filename, "rb");
-  if (!file.opened()) {
-    ozz::log::Err() << "Failed to open animation file " << _filename << "."
-                    << std::endl;
-    return false;
-  }
-  ozz::io::IArchive archive(&file);
-  if (!archive.TestTag<ozz::animation::Animation>()) {
-    ozz::log::Err() << "Failed to load animation instance from file "
-                    << _filename << "." << std::endl;
-    return false;
-  }
-
-  // Once the tag is validated, reading cannot fail.
-  {
-    archive >> *_animation;
-  }
-
-  return true;
-}
-
+extern bool LoadSkeleton(const char* _filename, ozz::animation::Skeleton* _skeleton);
+extern bool LoadAnimation(const char* _filename, ozz::animation::Animation* _animation);
+extern bool LoadMeshes(const char* _filename, ozz::vector<game::Mesh>* _meshes);
 
 static int LoadOzz(lua_State* L)
 {
@@ -126,11 +94,11 @@ static int LoadOzz(lua_State* L)
     // Allocates runtime buffers.
     const int num_soa_joints = anim->skeleton.num_soa_joints();
     anim->locals.resize(num_soa_joints);
-    const int num_joints = anim->skeleton.num_joints();
-    anim->models.resize(num_joints);
+    anim->num_joints = anim->skeleton.num_joints();
+    anim->models.resize(anim->num_joints);
 
     // Allocates a context that matches animation requirements.
-    anim->context.Resize(num_joints);
+    anim->context.Resize(anim->num_joints);
 
     // Skeleton and animation needs to match.
     if (anim->skeleton.num_joints() != anim->animations.num_tracks()) {
@@ -146,10 +114,68 @@ static int LoadOzz(lua_State* L)
     return 1;
 }
 
+static int LoadMeshes( lua_State *L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+
+    int idx = luaL_checknumber(L,1);
+    if( idx < 0 || idx >= g_anims.size()) {
+        printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    const char *mesh_filename = (char *)luaL_checkstring(L, 2);
+    if(mesh_filename == nullptr)
+    {
+        printf("[LoadOzz Error] Invalid mesh filename\n");
+        lua_pushnil(L);
+        return 1;    
+    }
+    
+    animObj *anim = g_anims[idx];
+    anim->mesh_filename = mesh_filename;
+
+    // Reading skinned meshes.
+    if (!LoadMeshes(anim->mesh_filename.c_str(), &anim->meshes)) {
+        printf("[LoadOzz Error] Cannot load mesh: %s\n", mesh_filename);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    // Computes the number of skinning matrices required to skin all meshes.
+    // A mesh is skinned by only a subset of joints, so the number of skinning
+    // matrices might be less that the number of skeleton joints.
+    // Mesh::joint_remaps is used to know how to order skinning matrices. So
+    // the number of matrices required is the size of joint_remaps.
+    size_t num_skinning_matrices = 0;
+    for (const game::Mesh& mesh : anim->meshes) {
+      num_skinning_matrices =
+          ozz::math::Max(num_skinning_matrices, mesh.joint_remaps.size());
+    }
+
+    // Allocates skinning matrices.
+    anim->skinning_matrices.resize(num_skinning_matrices);
+
+    // Check the skeleton matches with the mesh, especially that the mesh
+    // doesn't expect more joints than the skeleton has.
+    for (const game::Mesh& mesh : anim->meshes) {
+      if (anim->num_joints < mesh.highest_joint_index()) {
+        printf("[LoadOzz Error] The provided mesh doesn't match skeleton (joint count mismatch).\n");
+        lua_pushnil(L);
+        return 1; 
+      }
+    }
+
+    lua_pushnumber(L, idx);
+    return 1;
+}
+
 // Functions exposed to Lua
 static const luaL_reg Module_methods[] =
 {
     {"loadozz", LoadOzz},
+    {"loadmesh", LoadMeshes},
     {0, 0}
 };
 

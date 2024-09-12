@@ -18,7 +18,8 @@ function init(self)
 	go.set("#quad", "light", self.light)
 	go.set("#sphere", "light", self.light)
 
-	pprint(ozzanim.loadozz("assets/ozz/baked_skeleton.ozz", "assets/ozz/baked_animation.ozz"))
+	self.anim = ozzanim.loadozz("assets/ozz/ruby_skeleton.ozz", "assets/ozz/ruby_animation.ozz")
+	ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
 end
 
 function on_input(self, action_id, action)
