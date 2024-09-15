@@ -127,6 +127,60 @@ static int LoadOzz(lua_State* L)
     return 1;
 }
 
+static int SetBufferFromMesh(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    dmScript::LuaHBuffer *buffer = dmScript::CheckBuffer(L, 1);
+    const char *streamname = luaL_checkstring(L, 2);
+
+    int animid = luaL_checknumber(L, 3);
+    int meshid = luaL_checknumber(L, 4);
+
+    animObj *anim = g_anims[animid];
+    game::Mesh mesh = anim->meshes[meshid];
+
+    float* bytes = 0x0;
+    uint32_t count = 0;
+    uint32_t components = 0;
+    uint32_t stride = 0;
+    dmBuffer::Result r = dmBuffer::GetStream(buffer->m_Buffer, dmHashString64(streamname), (void**)&bytes, &count, &components, &stride);
+
+    if(components == 0 || count == 0) return 0;
+
+    size_t indiceslen = mesh.triangle_index_count();
+    uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
+    for( size_t i=0; i<indiceslen; i++)
+        idata[i] = mesh.triangle_indices[i];
+    
+    size_t floatslen = mesh.vertex_count() * 3;
+    float *floatdata = (float *)calloc(floatslen, sizeof(float));    
+    int ctr = 0;
+    for (size_t i = 0; i < mesh.parts.size(); i++) {
+        for (size_t j = 0; j < mesh.parts[i].positions.size(); j++) {
+            floatdata[ctr++] = mesh.parts[i].positions[j];
+        }
+    }
+
+    if (r == dmBuffer::RESULT_OK) {
+        for (int i = 0; i < count; ++i)
+        {
+            for (int c = 0; c < components; ++c)
+            {
+                bytes[c] = floatdata[idata[i] * components + c];
+            }
+            bytes += stride;
+        }
+    } else {
+        // handle error
+    }
+
+    free(idata);
+    free(floatdata);
+    r = dmBuffer::ValidateBuffer(buffer->m_Buffer);
+    return 0;
+}
+
+
 static int LoadMeshes( lua_State *L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -145,6 +199,9 @@ static int LoadMeshes( lua_State *L)
         lua_pushnil(L);
         return 1;    
     }
+
+    // dmGameObject::HInstance collection = dmScript::CheckCollection(L, 3);
+    // const char *go_proto = (char *)luaL_checkstring(L, 4);
     
     animObj *anim = g_anims[idx];
     anim->mesh_filename = mesh_filename;
@@ -180,19 +237,35 @@ static int LoadMeshes( lua_State *L)
       }
     }
 
-printf("Mesh count: %d\n", (int)anim->meshes.size());
+    lua_newtable(L);
+    int parent = lua_gettop(L);
+    int i = 1;
     for (const game::Mesh& mesh : anim->meshes) 
     {
-        printf("----------------------------------------\n");
-        printf("Vertices: %d\n", mesh.vertex_count());
-        printf("Indices: %d\n", mesh.triangle_index_count());
-        printf("Max Influences: %d\n", mesh.max_influences_count());
-        printf("Skinned: %d\n", (mesh.skinned() == true)?1:0);
-        printf("Number of Joints: %d\n", mesh.num_joints());      
-        printf("----------------------------------------\n");
+        // printf("----------------------------------------\n");
+        // printf("Vertices: %d\n", mesh.vertex_count());
+        // printf("Indices: %d\n", mesh.triangle_index_count());
+        // printf("Max Influences: %d\n", mesh.max_influences_count());
+        // printf("Skinned: %d\n", (mesh.skinned() == true)?1:0);
+        // printf("Number of Joints: %d\n", mesh.num_joints());      
+        // printf("----------------------------------------\n");
+
+        lua_pushnumber(L, i++); 
+        lua_newtable(L);
+
+        lua_pushstring(L, "vertex_count");   
+        lua_pushnumber(L, mesh.vertex_count()); 
+        lua_rawset(L, -3);      
+        lua_pushstring(L, "triangle_index_count");   
+        lua_pushnumber(L, mesh.triangle_index_count()); 
+        lua_rawset(L, -3);  
+        lua_pushstring(L, "joint_count");   
+        lua_pushnumber(L, mesh.num_joints()); 
+        lua_rawset(L, -3);      
+
+        lua_rawset(L, -3);   
     }
 
-    lua_pushnumber(L, idx);
     return 1;
 }
 
@@ -293,6 +366,7 @@ static const luaL_reg Module_methods[] =
     {"loadmesh", LoadMeshes},
     {"getmeshbounds", GetMeshBounds},
     {"getskinnedbounds", GetSkinnedBounds},
+    {"setbufferfrommesh", SetBufferFromMesh},
     {0, 0}
 };
 

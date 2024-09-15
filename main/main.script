@@ -1,3 +1,6 @@
+
+local gogen = require("ozz-animation.assets.gogen")
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	msg.post("@render:", "use_camera_projection")
@@ -8,27 +11,15 @@ function init(self)
 	go.animate(".", "euler.x", go.PLAYBACK_LOOP_FORWARD, 360, go.EASING_INOUTQUAD, 9)
 	go.animate(".", "euler.y", go.PLAYBACK_LOOP_FORWARD, 360, go.EASING_INOUTQUAD, 12)
 
-	-- tint the cube and the sphere
-	go.set("#cube", "tint", vmath.vector4(1,1,0,1))
-	go.set("#sphere", "tint", vmath.vector4(1,0,0,1))
-	
-	-- position directional light
-	self.light = vmath.vector4(0, 0, go.get_position().z + 1, 0)
-	go.set("#cube", "light", self.light)
-	go.set("#quad", "light", self.light)
-	go.set("#sphere", "light", self.light)
-
 	self.anim = ozzanim.loadozz("assets/ozz/ruby_skeleton.ozz", "assets/ozz/ruby_animation.ozz")
-	local test = ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
-	pprint(ozzanim.getmeshbounds(self.anim))
-	pprint(ozzanim.getskinnedbounds(self.anim))
+	self.meshes = ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
+	io.flush()
+	pprint("Mesh: ", self.meshes)
+
+	self.parent = gogen.makeParentGo( "#factory", self.anim, self.meshes)
+	-- pprint(ozzanim.getmeshbounds(self.anim))
+	-- pprint(ozzanim.getskinnedbounds(self.anim))
 end
 
 function on_input(self, action_id, action)
-	-- move directional light based on input
-	self.light.x = 2 * ((action.x - 480) / 480)
-	self.light.y = 2 * ((action.y - 320) / 320)
-	go.set("#cube", "light", self.light)
-	go.set("#quad", "light", self.light)
-	go.set("#sphere", "light", self.light)
 end
