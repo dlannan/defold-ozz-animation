@@ -8,6 +8,7 @@ function init(self)
 
 	self.anim = ozzanim.loadozz("assets/ozz/ruby_skeleton.ozz", "assets/ozz/ruby_animation.ozz")
 	self.meshes = ozzanim.loadmesh(self.anim, "assets/ozz/ruby_mesh.ozz")
+
 	self.parent = gogen.makeParentGo( "#factory", self.anim, self.meshes)
 	-- pprint(ozzanim.getmeshbounds(self.anim))
 	-- pprint(ozzanim.getskinnedbounds(self.anim))
