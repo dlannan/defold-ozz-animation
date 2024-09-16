@@ -3,7 +3,7 @@ embedded_components {
   type: "mesh"
   data: "material: \"/builtins/materials/model.material\"\n"
   "vertices: \"/ozz-animation/assets/temp.buffer\"\n"
-  "textures: \"/builtins/assets/images/logo/logo_256.png\"\n"
+  "textures: \"/assets/images/green.png\"\n"
   "position_stream: \"position\"\n"
   "normal_stream: \"normal\"\n"
   ""

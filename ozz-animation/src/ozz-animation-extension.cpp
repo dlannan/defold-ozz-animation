@@ -132,7 +132,7 @@ static int SetBufferFromMesh(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     dmScript::LuaHBuffer *buffer = dmScript::CheckBuffer(L, 1);
     const char *streamname = luaL_checkstring(L, 2);
-
+    
     int animid = luaL_checknumber(L, 3);
     int meshid = luaL_checknumber(L, 4);
 
@@ -147,35 +147,37 @@ static int SetBufferFromMesh(lua_State* L)
 
     if(components == 0 || count == 0) return 0;
 
-    size_t indiceslen = mesh.triangle_index_count();
-    uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
-    for( size_t i=0; i<indiceslen; i++)
-        idata[i] = mesh.triangle_indices[i];
-    
-    size_t floatslen = mesh.vertex_count() * 3;
-    float *floatdata = (float *)calloc(floatslen, sizeof(float));    
-    int ctr = 0;
-    for (size_t i = 0; i < mesh.parts.size(); i++) {
-        for (size_t j = 0; j < mesh.parts[i].positions.size(); j++) {
-            floatdata[ctr++] = mesh.parts[i].positions[j];
-        }
-    }
-
-    if (r == dmBuffer::RESULT_OK) {
-        for (int i = 0; i < count; ++i)
-        {
-            for (int c = 0; c < components; ++c)
-            {
-                bytes[c] = floatdata[idata[i] * components + c];
+    if(strcmp(streamname, "position") == 0) {
+        size_t indiceslen = mesh.triangle_index_count();
+        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
+        for( size_t i=0; i<indiceslen; i++)
+            idata[i] = mesh.triangle_indices[i];
+        
+        size_t floatslen = mesh.vertex_count() * 3;
+        float *floatdata = (float *)calloc(floatslen, sizeof(float));    
+        int ctr = 0;
+        for (size_t i = 0; i < mesh.parts.size(); i++) {
+            for (size_t j = 0; j < mesh.parts[i].positions.size(); j++) {
+                floatdata[ctr++] = mesh.parts[i].positions[j];
             }
-            bytes += stride;
         }
-    } else {
-        // handle error
+
+        if (r == dmBuffer::RESULT_OK) {
+            for (int i = 0; i < count; ++i)
+            {
+                for (int c = 0; c < components; ++c)
+                {
+                    bytes[c] = floatdata[idata[i] * components + c];
+                }
+                bytes += stride;
+            }
+        } else {
+            // handle error
+        }
+        free(idata);
+        free(floatdata);
     }
 
-    free(idata);
-    free(floatdata);
     r = dmBuffer::ValidateBuffer(buffer->m_Buffer);
     return 0;
 }
