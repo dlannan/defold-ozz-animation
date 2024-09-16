@@ -178,6 +178,68 @@ static int SetBufferFromMesh(lua_State* L)
         free(floatdata);
     }
 
+    if(strcmp(streamname, "normal") == 0) {
+        size_t indiceslen = mesh.triangle_index_count();
+        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
+        for( size_t i=0; i<indiceslen; i++)
+        idata[i] = mesh.triangle_indices[i];
+
+        size_t floatslen = mesh.normal_count() * 3;
+        float *floatdata = (float *)calloc(floatslen, sizeof(float));    
+        int ctr = 0;
+        for (size_t i = 0; i < mesh.parts.size(); i++) {
+            for (size_t j = 0; j < mesh.parts[i].normals.size(); j++) {
+                floatdata[ctr++] = mesh.parts[i].normals[j];
+            }
+        }
+
+        if (r == dmBuffer::RESULT_OK) {
+            for (int i = 0; i < count; ++i)
+            {
+                for (int c = 0; c < components; ++c)
+                {
+                    bytes[c] = floatdata[idata[i] * components + c];
+                }
+                bytes += stride;
+            }
+        } else {
+            // handle error
+        }
+        free(idata);
+        free(floatdata);
+    }
+
+    if(strcmp(streamname, "texcoord0") == 0) {
+        size_t indiceslen = mesh.triangle_index_count();
+        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
+        for( size_t i=0; i<indiceslen; i++)
+        idata[i] = mesh.triangle_indices[i];
+
+        size_t floatslen = mesh.uv_count() * 3;
+        float *floatdata = (float *)calloc(floatslen, sizeof(float));    
+        int ctr = 0;
+        for (size_t i = 0; i < mesh.parts.size(); i++) {
+            for (size_t j = 0; j < mesh.parts[i].uvs.size(); j++) {
+                floatdata[ctr++] = mesh.parts[i].uvs[j];
+            }
+        }
+
+        if (r == dmBuffer::RESULT_OK) {
+            for (int i = 0; i < count; ++i)
+            {
+                for (int c = 0; c < components; ++c)
+                {
+                    bytes[c] = floatdata[idata[i] * components + c];
+                }
+                bytes += stride;
+            }
+        } else {
+            // handle error
+        }
+        free(idata);
+        free(floatdata);
+    }    
+    
     r = dmBuffer::ValidateBuffer(buffer->m_Buffer);
     return 0;
 }

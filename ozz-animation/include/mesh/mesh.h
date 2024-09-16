@@ -32,6 +32,24 @@ namespace game
         return vertex_count;
     }
 
+    // Number of vertices for all mesh parts.
+    int normal_count() const {
+        int normal_count = 0;
+        for (size_t i = 0; i < parts.size(); ++i) {
+            normal_count += parts[i].normal_count();
+        }
+        return normal_count;
+    }
+
+    // Number of vertices for all mesh parts.
+    int uv_count() const {
+        int uv_count = 0;
+        for (size_t i = 0; i < parts.size(); ++i) {
+            uv_count += parts[i].uv_count();
+        }
+        return uv_count;
+    }    
+
     // Maximum number of joints influences for all mesh parts.
     int max_influences_count() const {
         int max_influences_count = 0;
@@ -62,6 +80,8 @@ namespace game
     // with the same number of joint influences.
     struct Part {
         int vertex_count() const { return static_cast<int>(positions.size()) / 3; }
+        int normal_count() const { return static_cast<int>(normals.size()) / 3; }
+        int uv_count() const { return static_cast<int>(uvs.size()) / 2; }
 
         int influences_count() const {
         const int _vertex_count = vertex_count();
