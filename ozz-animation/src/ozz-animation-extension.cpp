@@ -213,9 +213,9 @@ static int SetBufferFromMesh(lua_State* L)
         size_t indiceslen = mesh.triangle_index_count();
         uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
         for( size_t i=0; i<indiceslen; i++)
-        idata[i] = mesh.triangle_indices[i];
+            idata[i] = mesh.triangle_indices[i];
 
-        size_t floatslen = mesh.uv_count() * 3;
+        size_t floatslen = mesh.uv_count() * 2;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
         int ctr = 0;
         for (size_t i = 0; i < mesh.parts.size(); i++) {
@@ -229,7 +229,10 @@ static int SetBufferFromMesh(lua_State* L)
             {
                 for (int c = 0; c < components; ++c)
                 {
-                    bytes[c] = floatdata[idata[i] * components + c];
+                    if(c == 1) 
+                        bytes[c] = 1.0 - floatdata[idata[i] * components + c];
+                    else
+                        bytes[c] = floatdata[idata[i] * components + c];
                 }
                 bytes += stride;
             }
@@ -332,6 +335,35 @@ static int LoadMeshes( lua_State *L)
 
     return 1;
 }
+
+static int DrawSkinnedMesh(lua_State *L)
+{
+//     int idx = luaL_checknumber(L,1);
+//     if( idx < 0 || idx >= g_anims.size()) {
+//         printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+//         lua_pushnil(L);
+//         return 1;    
+//     }
+// 
+//     animObj *anim = g_anims[idx];
+//     
+//     // Builds skinning matrices, based on the output of the animation stage.
+//     // The mesh might not use (aka be skinned by) all skeleton joints. We
+//     // use the joint remapping table (available from the mesh object) to
+//     // reorder model-space matrices and build skinning ones.
+//     for (const ozz::sample::Mesh& mesh : animObj->models ) {
+//         for (size_t i = 0; i < mesh.joint_remaps.size(); ++i) {
+//             skinning_matrices_[i] = animObj->models[mesh.joint_remaps[i]] * mesh.inverse_bind_poses[i];
+//         }
+// 
+//         // Renders skin.
+//         success &= _renderer->DrawSkinnedMesh(
+//             mesh, make_span(skinning_matrices_), transform, render_options_);
+//         }
+//     }
+
+    return 0;
+}    
 
 static int GetMeshBounds(lua_State *L)
 {

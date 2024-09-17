@@ -33,6 +33,7 @@ embedded_instances {
   "}\n"
   ""
   position {
+    y: 1.0
     z: 6.0
   }
 }

@@ -31,7 +31,7 @@ gogen.makeGameObject = function( factory_url, animid, meshid, iverts )
 	local meshbuf = buffer.create(iverts, meshdata)	
 	ozzanim.setbufferfrommesh( meshbuf, "position", newgo.animid, newgo.meshid )
 	ozzanim.setbufferfrommesh( meshbuf, "normal", newgo.animid, newgo.meshid )
-	ozzanim.setbufferfrommesh( meshbuf, "texcoord", newgo.animid, newgo.meshid )
+	ozzanim.setbufferfrommesh( meshbuf, "texcoord0", newgo.animid, newgo.meshid )
 	pprint(res)
 	
 	-- set the buffer with the vertices on the mesh
@@ -40,7 +40,7 @@ gogen.makeGameObject = function( factory_url, animid, meshid, iverts )
 		
 	resource.set_buffer(newres, meshbuf)
 	go.set(mesh_url, "vertices", newres )
-	go.get(mesh_url, "material")
+	--go.get(mesh_url, "material")
 	return newgo
 end
 
