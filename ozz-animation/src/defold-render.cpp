@@ -41,7 +41,7 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
     uint32_t positions_stride = 0;
     dmBuffer::Result r = dmBuffer::GetStream(_mesh.buffer, dmHashString64("position"), (void**)&vert_bytes, &vert_count, &vert_comp, &positions_stride);
     if(vert_comp == 0 || vert_count == 0) return false;
-    printf("posstride: %d\n", positions_stride);
+    printf("pos stride: %d %d %d %d\n", (int)r, vert_count, vert_comp, positions_stride);
     float *vertptr = (float *)calloc(vertex_count * 3, sizeof(float));
     
     float* norm_bytes = 0x0;
