@@ -17,6 +17,8 @@ function init(self)
 end
 
 function update(self, dt)
+	ozzanim.updateanimation()
+	gogen.drawSkinned(self.parent, self.anim)
 end
 
 function on_input(self, action_id, action)

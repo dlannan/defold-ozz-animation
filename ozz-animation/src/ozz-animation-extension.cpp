@@ -29,6 +29,7 @@
 #include "ozz/base/span.h"
 #include "ozz/options/options.h"
 
+// --------------------------------------------------------------------------------------------------------
 // TODO: 
 //    Make this more of a reference container so meshes, animations and skeletons
 //    are only loaded once rather than for each instance.
@@ -53,15 +54,20 @@ typedef struct animObj
     ozz::vector<ozz::math::Float4x4>        models;    
     ozz::vector<ozz::math::Float4x4>        skinning_matrices;
 } _animObj;
+
+// --------------------------------------------------------------------------------------------------------
     
 static std::vector<animObj *> g_anims;
 static uint64_t g_last_time = 0;
 
+// --------------------------------------------------------------------------------------------------------
 extern bool LoadSkeleton(const char* _filename, ozz::animation::Skeleton* _skeleton);
 extern bool LoadAnimation(const char* _filename, ozz::animation::Animation* _animation);
 extern bool LoadMeshes(const char* _filename, ozz::vector<game::Mesh>* _meshes);
 
 extern bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const ozz::span<ozz::math::Float4x4> _skinning_matrices, const ozz::math::Float4x4 &_transform);
+
+// --------------------------------------------------------------------------------------------------------
 
 static int LoadOzz(lua_State* L)
 {
@@ -121,7 +127,7 @@ static int LoadOzz(lua_State* L)
     printf("-- Animation Data --\n");
     printf("Numjoints: %d\n", anim->skeleton.num_joints());
     printf("NumTracks: %d\n", anim->animations.num_tracks());
-    printf("Animations: %d\n", (int)anim->animations.size());
+    printf("Animations: %d\n", (uint32_t)anim->animations.size());
     
     int idx = g_anims.size();
     g_anims.push_back(anim);
@@ -129,6 +135,8 @@ static int LoadOzz(lua_State* L)
     lua_pushnumber(L, idx);
     return 1;
 }
+
+// --------------------------------------------------------------------------------------------------------
 
 const dmBuffer::StreamDeclaration streams_decl[] = {
     {dmHashString64("position"), dmBuffer::VALUE_TYPE_FLOAT32, 3},
@@ -152,7 +160,6 @@ static int SetBufferFromMesh(lua_State* L)
     uint32_t components = 0;
     uint32_t stride = 0;
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("position"), (void**)&bytes, &count, &components, &stride);
-    printf("Mesh Position Stride: %d\n", stride);
     if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
 
@@ -180,7 +187,6 @@ static int SetBufferFromMesh(lua_State* L)
     }
     
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("normal"), (void**)&bytes, &count, &components, &stride);
-    printf("Mesh Normal Stride: %d\n", stride);
     if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.normal_count() * 3;
@@ -208,7 +214,6 @@ static int SetBufferFromMesh(lua_State* L)
     }
 
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("texcoord0"), (void**)&bytes, &count, &components, &stride);
-    printf("Mesh UV Stride: %d\n", stride);
     if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.uv_count() * 2;
@@ -244,6 +249,7 @@ static int SetBufferFromMesh(lua_State* L)
     return 1;
 }
 
+// --------------------------------------------------------------------------------------------------------
 
 static int LoadMeshes( lua_State *L)
 {
@@ -333,6 +339,8 @@ static int LoadMeshes( lua_State *L)
     return 1;
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 int DrawSkinnedMeshInternal( animObj * anim )
 {
     const ozz::math::Float4x4 transform = ozz::math::Float4x4::identity();
@@ -347,12 +355,14 @@ int DrawSkinnedMeshInternal( animObj * anim )
         }
 
         // Renders skin.
-        DrawDefoldSkinnedMesh(mesh, make_span(anim->skinning_matrices), transform);
+        bool ok = DrawDefoldSkinnedMesh(mesh, make_span(anim->skinning_matrices), transform);
+        if(ok == false) printf("Bad Draw juju\n");
     }
 
     return 0;
 }    
 
+// --------------------------------------------------------------------------------------------------------
 
 static int DrawSkinnedMesh(lua_State *L)
 {
@@ -364,9 +374,48 @@ static int DrawSkinnedMesh(lua_State *L)
     }
 
     animObj *anim = g_anims[idx];
-    DrawSkinnedMeshInternal(anim);
+    int ok = DrawSkinnedMeshInternal(anim);
+    lua_pushnumber(L, ok);
+    return 1;
 }
 
+// --------------------------------------------------------------------------------------------------------
+
+static int UpdateAnimation(lua_State *L)
+{
+    double dt = (double)(( dmTime::GetTime() - g_last_time ) / 1000000.0 );
+    g_last_time = dmTime::GetTime();
+ 
+    for(size_t i=0; i<g_anims.size(); ++i)
+    {
+        // printf("Test dt: %g  %d\n", dt, (int)i);
+        animObj *anim = g_anims[i];
+        // Updates current animation time.
+        anim->controller.Update(anim->animations, dt);
+
+        // Samples optimized animation at t = animation_time_.
+        ozz::animation::SamplingJob sampling_job;
+        sampling_job.animation = &anim->animations;
+        sampling_job.context = &anim->context;
+        sampling_job.ratio = anim->controller.time_ratio();
+        sampling_job.output = make_span(anim->locals);
+        if (!sampling_job.Run()) {
+            dmExtension::RESULT_INIT_ERROR  ;
+        }
+
+        // Converts from local space to model space matrices.
+        ozz::animation::LocalToModelJob ltm_job;
+        ltm_job.skeleton = &anim->skeleton;
+        ltm_job.input = make_span(anim->locals);
+        ltm_job.output = make_span(anim->models);
+        if (!ltm_job.Run()) {
+            dmExtension::RESULT_INIT_ERROR  ;
+        }
+    }
+    return 0;
+}
+
+// --------------------------------------------------------------------------------------------------------
 
 static int GetMeshBounds(lua_State *L)
 {
@@ -413,6 +462,8 @@ static int GetMeshBounds(lua_State *L)
     return 6;
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 static int GetSkinnedBounds(lua_State *L)
 {
     int idx = luaL_checknumber(L,1);
@@ -458,6 +509,7 @@ static int GetSkinnedBounds(lua_State *L)
     return 6;
 }
 
+// --------------------------------------------------------------------------------------------------------
 // Functions exposed to Lua
 static const luaL_reg Module_methods[] =
 {
@@ -466,9 +518,12 @@ static const luaL_reg Module_methods[] =
     {"getmeshbounds", GetMeshBounds},
     {"getskinnedbounds", GetSkinnedBounds},
     {"createbuffers", SetBufferFromMesh},
+    {"updateanimation", UpdateAnimation},
     {"drawskinnedmesh", DrawSkinnedMesh},
     {0, 0}
 };
+
+// --------------------------------------------------------------------------------------------------------
 
 static void LuaInit(lua_State* L)
 {
@@ -481,11 +536,15 @@ static void LuaInit(lua_State* L)
     assert(top == lua_gettop(L));
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 static dmExtension::Result AppInitializeozzanim(dmExtension::AppParams* params)
 {
     dmLogInfo("AppInitializeozz");
     return dmExtension::RESULT_OK;
 }
+
+// --------------------------------------------------------------------------------------------------------
 
 static dmExtension::Result Initializeozzanim(dmExtension::Params* params)
 {
@@ -495,6 +554,8 @@ static dmExtension::Result Initializeozzanim(dmExtension::Params* params)
     dmLogInfo("Registered %s Extension", MODULE_NAME);
     return dmExtension::RESULT_OK;
 }
+
+// --------------------------------------------------------------------------------------------------------
 
 static dmExtension::Result AppFinalizeozzanim(dmExtension::AppParams* params)
 {
@@ -506,48 +567,23 @@ static dmExtension::Result AppFinalizeozzanim(dmExtension::AppParams* params)
     return dmExtension::RESULT_OK;
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 static dmExtension::Result Finalizeozzanim(dmExtension::Params* params)
 {
     dmLogInfo("Finalizeozz");
     return dmExtension::RESULT_OK;
 }
 
+// --------------------------------------------------------------------------------------------------------
+
 static dmExtension::Result OnUpdateozzanim(dmExtension::Params* params)
 {
-    double dt = ((double)( dmTime::GetTime() - g_last_time ) / 1000000.0);
-    g_last_time = dmTime::GetTime();
- 
-    for(size_t i=0; i<g_anims.size(); ++i)
-    {
-        //printf("Test dt: %g  %d\n", dt, (int)i);
 
-        animObj *anim = g_anims[i];
-        // Updates current animation time.
-        anim->controller.Update(anim->animations, dt);
-
-        // Samples optimized animation at t = animation_time_.
-        ozz::animation::SamplingJob sampling_job;
-        sampling_job.animation = &anim->animations;
-        sampling_job.context = &anim->context;
-        sampling_job.ratio = anim->controller.time_ratio();
-        sampling_job.output = make_span(anim->locals);
-        if (!sampling_job.Run()) {
-            dmExtension::RESULT_INIT_ERROR  ;
-        }
-
-        // Converts from local space to model space matrices.
-        ozz::animation::LocalToModelJob ltm_job;
-        ltm_job.skeleton = &anim->skeleton;
-        ltm_job.input = make_span(anim->locals);
-        ltm_job.output = make_span(anim->models);
-        if (!ltm_job.Run()) {
-            dmExtension::RESULT_INIT_ERROR  ;
-        }
-
-        bool res = DrawSkinnedMeshInternal(anim);
-    }
     return dmExtension::RESULT_OK;
 }
+
+// --------------------------------------------------------------------------------------------------------
 
 static void OnEventozzanim(dmExtension::Params* params, const dmExtension::Event* event)
 {

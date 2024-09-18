@@ -36,21 +36,16 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
 
     // Reallocate vertex buffer.
     float* vert_bytes = 0x0;
-    uint32_t vert_count = 0;
-    uint32_t vert_comp = 0;
-    uint32_t positions_stride = 0;
-    dmBuffer::Result r = dmBuffer::GetStream(_mesh.buffer, dmHashString64("position"), (void**)&vert_bytes, &vert_count, &vert_comp, &positions_stride);
-    if(vert_comp == 0 || vert_count == 0) return false;
-    printf("pos stride: %d %d %d %d\n", (int)r, vert_count, vert_comp, positions_stride);
-    float *vertptr = (float *)calloc(vertex_count * 3, sizeof(float));
+    uint32_t positions_stride = 8;
     
     float* norm_bytes = 0x0;
-    uint32_t norm_count = 0;
-    uint32_t norm_comp = 0;
-    uint32_t normals_stride = 0;
-    r = dmBuffer::GetStream(_mesh.buffer, dmHashString64("normal"), (void**)&norm_bytes, &norm_count, &norm_comp, &normals_stride);
-    if(norm_comp == 0 || norm_count == 0) return false;
-    float *normptr = (float *)calloc(vertex_count * 3, sizeof(float));
+    uint32_t normals_stride = 8;
+
+    float * bytes = 0x0;
+    uint32_t size = 0;
+    dmBuffer::Result r = dmBuffer::GetBytes(_mesh.buffer, (void**)&bytes, &size);
+    vert_bytes = bytes;
+    norm_bytes = vert_bytes + 3;
 
     // Iterate mesh parts and fills vbo.
     // Runs a skinning job per mesh part. Triangle indices are shared
@@ -96,14 +91,14 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
 
         // Setup output positions, coming from the rendering output mesh buffers.
         // We need to offset the buffer every loop.
-        float *out_positions_begin = reinterpret_cast<float *>(ozz::PointerStride(vertptr, positions_offset + processed_vertex_count * positions_stride));
-        float *out_positions_end = ozz::PointerStride(out_positions_begin, part_vertex_count * positions_stride);
+        float *out_positions_begin = reinterpret_cast<float *>(ozz::PointerStride(vert_bytes, positions_offset + processed_vertex_count * positions_stride * sizeof(float)));
+        float *out_positions_end = ozz::PointerStride(out_positions_begin, part_vertex_count * positions_stride * sizeof(float));
         skinning_job.out_positions = {out_positions_begin, out_positions_end};
-        skinning_job.out_positions_stride = positions_stride;
+        skinning_job.out_positions_stride = positions_stride * sizeof(float);
 
         // Setup normals if input are provided.
-        float *out_normal_begin = reinterpret_cast<float *>(ozz::PointerStride(normptr, normals_offset + processed_vertex_count * normals_stride));
-        float *out_normal_end = ozz::PointerStride(out_normal_begin, part_vertex_count * normals_stride);
+        float *out_normal_begin = reinterpret_cast<float *>(ozz::PointerStride(norm_bytes, normals_offset + processed_vertex_count * normals_stride * sizeof(float)));
+        float *out_normal_end = ozz::PointerStride(out_normal_begin, part_vertex_count * normals_stride * sizeof(float));
 
         if (part.normals.size() / game::Mesh::Part::kNormalsCpnts == part_vertex_count)
         {
@@ -114,12 +109,12 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
             // Setup output normals, coming from the rendering output mesh buffers.
             // We need to offset the buffer every loop.
             skinning_job.out_normals = {out_normal_begin, out_normal_end};
-            skinning_job.out_normals_stride = normals_stride;
+            skinning_job.out_normals_stride = normals_stride * sizeof(float);
         }
         else
         {
             // Fills output with default normals.
-            for (float *normal = out_normal_begin; normal < out_normal_end; normal = ozz::PointerStride(normal, normals_stride))
+            for (float *normal = out_normal_begin; normal < out_normal_end; normal = ozz::PointerStride(normal, normals_stride * sizeof(float)))
             {
                 normal[0] = 0.f;
                 normal[1] = 1.f;
@@ -134,20 +129,8 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
             return false;
         }
 
-        // After skinning put the output data back into our rendering 
-        for (int i = 0; i < vertex_count; ++i) {
-            for (int c = 0; c < vert_comp; ++c) {
-                vert_bytes[c] = skinning_job.out_positions[_mesh.triangle_indices[i] * vert_comp + c];
-                norm_bytes[c] = skinning_job.out_normals[_mesh.triangle_indices[i] * vert_comp + c];
-            }
-            vert_bytes += positions_stride;
-            norm_bytes += normals_stride;
-        }
-        free(vertptr);
-        free(normptr);
-                        
-        printf("Good juju\n");
         processed_vertex_count += part_vertex_count;
     }
+    dmBuffer::ValidateBuffer(_mesh.buffer);
     return true;
 }
