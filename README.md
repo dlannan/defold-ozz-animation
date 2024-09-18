@@ -37,7 +37,7 @@ The standalone Animation editor I want to build with Defold will be a derivative
 - [X] Create defold mesh from ozz mesh
 - [ ] Editor tool to convert gltf to ozz skeleton, anim and mesh
 - [ ] Editor tool to convert fbx to ozz skeleton, anim and mesh
-- [ ] Runtime loadable ozz data
+- [X] Runtime loadable ozz data
 - [ ] Map materials to the defold mesh
-- [ ] Generate mesh buffers from ozz mesh (maybe in editor?)
+- [X] Generate mesh buffers from ozz mesh (maybe in editor?)
 - [ ] Prototype Anim Editor
