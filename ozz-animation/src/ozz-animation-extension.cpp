@@ -153,7 +153,7 @@ static int SetBufferFromMesh(lua_State* L)
     uint32_t stride = 0;
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("position"), (void**)&bytes, &count, &components, &stride);
     printf("Mesh Position Stride: %d\n", stride);
-    if(components == 0 || count == 0) return 0;
+    if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
 
         size_t floatslen = mesh.vertex_count() * 3;
@@ -181,7 +181,7 @@ static int SetBufferFromMesh(lua_State* L)
     
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("normal"), (void**)&bytes, &count, &components, &stride);
     printf("Mesh Normal Stride: %d\n", stride);
-    if(components == 0 || count == 0) return 0;
+    if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.normal_count() * 3;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
@@ -209,7 +209,7 @@ static int SetBufferFromMesh(lua_State* L)
 
     r = dmBuffer::GetStream(mesh.buffer, dmHashString64("texcoord0"), (void**)&bytes, &count, &components, &stride);
     printf("Mesh UV Stride: %d\n", stride);
-    if(components == 0 || count == 0) return 0;
+    if(components == 0 || count == 0) { lua_pushnil(L); return 1; }
     if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.uv_count() * 2;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
