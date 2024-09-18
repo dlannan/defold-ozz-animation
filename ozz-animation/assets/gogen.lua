@@ -15,27 +15,15 @@ gogen.makeGameObject = function( factory_url, animid, meshid, iverts )
 	}
 
 	-- Create buffers and streams
--- 	pprint(newgo.url)
 	local mesh_url = msg.url("main", newgo.url, "mesh")
 	local res = resource.get_buffer(go.get(mesh_url, "vertices"))	
--- 	pprint(res)
 
     -- create a cloned buffer resource from another resource buffer
+	local meshbuf = ozzanim.createbuffers(iverts, newgo.animid, newgo.meshid)
 
-	local meshdata = {}
-	-- positions are required (should assert or something)
-	tinsert(meshdata, { name = hash("position"), type=buffer.VALUE_TYPE_FLOAT32, count = 3 })
-	tinsert(meshdata, { name = hash("normal"), type=buffer.VALUE_TYPE_FLOAT32, count = 3 } ) 
-	tinsert(meshdata, { name = hash("texcoord0"), type=buffer.VALUE_TYPE_FLOAT32, count = 2 } )
-
-	local meshbuf = buffer.create(iverts, meshdata)	
-	ozzanim.setbufferfrommesh( meshbuf, "position", newgo.animid, newgo.meshid )
-	ozzanim.setbufferfrommesh( meshbuf, "normal", newgo.animid, newgo.meshid )
-	ozzanim.setbufferfrommesh( meshbuf, "texcoord0", newgo.animid, newgo.meshid )
-	pprint(res)
-	
 	-- set the buffer with the vertices on the mesh
-	local newres = resource.create_buffer("/mesh_buffer_"..string.format("%d", gogen.ctr)..".bufferc", { buffer = res })	
+    local resourcename = "/mesh_buffer_"..string.format("%d", gogen.ctr)..".bufferc"
+	local newres = resource.create_buffer(resourcename, { buffer = res })	
 	gogen.ctr = gogen.ctr + 1
 		
 	resource.set_buffer(newres, meshbuf)

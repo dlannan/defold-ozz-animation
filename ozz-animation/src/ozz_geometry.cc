@@ -32,6 +32,7 @@
 #include "ozz/geometry/runtime/skinning_job.h"
 
 #include <cassert>
+#include <stdio.h>
 
 #include "ozz/base/maths/simd_math.h"
 
@@ -53,12 +54,13 @@ SkinningJob::SkinningJob()
 bool SkinningJob::Validate() const {
   // Start validation of all parameters.
   bool valid = true;
-
+printf("------->>>\n");
   // Checks influences bounds.
   valid &= influences_count > 0;
-
+printf("valid1: %d\n", valid);
   // Checks joints matrices, required.
   valid &= !joint_matrices.empty();
+printf("valid2: %d\n", valid);
 
   // Prepares local variables used to compute buffer size.
   const int vertex_count_minus_1 = vertex_count > 0 ? vertex_count - 1 : 0;
@@ -68,6 +70,7 @@ bool SkinningJob::Validate() const {
   valid &= joint_indices.size_bytes() >=
            joint_indices_stride * vertex_count_minus_1 +
                sizeof(uint16_t) * influences_count * vertex_count_at_least_1;
+printf("valid3: %d\n", valid);
 
   // Checks weights, required if influences_count > 1.
   if (influences_count != 1) {
@@ -75,23 +78,29 @@ bool SkinningJob::Validate() const {
         joint_weights.size_bytes() >=
         joint_weights_stride * vertex_count_minus_1 +
             sizeof(float) * (influences_count - 1) * vertex_count_at_least_1;
+printf("valid4: %d\n", valid);
   }
 
   // Checks positions, mandatory.
   valid &= in_positions.size_bytes() >=
            in_positions_stride * vertex_count_minus_1 +
                sizeof(float) * 3 * vertex_count_at_least_1;
+printf("valid5: %d\n", valid);
   valid &= !out_positions.empty();
+printf("valid6: %d  %d %d %d %d\n", valid, (int)out_positions.size_bytes(), (int)out_positions_stride, vertex_count_minus_1, vertex_count_at_least_1);
   valid &= out_positions.size_bytes() >=
            out_positions_stride * vertex_count_minus_1 +
                sizeof(float) * 3 * vertex_count_at_least_1;
+printf("valid7: %d\n", valid);
 
   // Checks normals, optional.
   if (!in_normals.empty()) {
     valid &= in_normals.size_bytes() >=
              in_normals_stride * vertex_count_minus_1 +
                  sizeof(float) * 3 * vertex_count_at_least_1;
+printf("valid8: %d\n", valid);
     valid &= !out_normals.empty();
+printf("valid9: %d\n", valid);
     valid &= out_normals.size_bytes() >=
              out_normals_stride * vertex_count_minus_1 +
                  sizeof(float) * 3 * vertex_count_at_least_1;
@@ -107,6 +116,7 @@ bool SkinningJob::Validate() const {
                    sizeof(float) * 3 * vertex_count_at_least_1;
     }
   } else {
+printf("valid exit: %d\n", valid);
     // Tangents are not supported if normals are not there.
     valid &= in_tangents.empty();
   }

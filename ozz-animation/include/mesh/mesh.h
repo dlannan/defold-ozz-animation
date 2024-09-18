@@ -12,6 +12,9 @@
 #include "ozz/base/io/archive.h"
 #include "ozz/base/io/stream.h"
 
+#include <dmsdk/dlib/buffer.h>
+
+
 namespace game
 {
     // Defines a mesh with skinning information (joint indices and weights).
@@ -133,8 +136,11 @@ namespace game
     // Inverse bind-pose matrices. These are only available for skinned meshes.
     typedef ozz::vector<ozz::math::Float4x4> InversBindPoses;
     InversBindPoses inverse_bind_poses;
-    };
 
+    // Used at runtime to set vert buffers - dont like this at all!
+    dmBuffer::HBuffer buffer;
+
+    };
 }
 
 namespace ozz {

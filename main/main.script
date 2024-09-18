@@ -14,7 +14,9 @@ function init(self)
 	-- pprint(ozzanim.getskinnedbounds(self.anim))
 
 	go.animate(self.parent.url, "euler.y", go.PLAYBACK_LOOP_FORWARD, 360, go.EASING_INOUTQUAD, 12)
-	
+end
+
+function update(self, dt)
 end
 
 function on_input(self, action_id, action)

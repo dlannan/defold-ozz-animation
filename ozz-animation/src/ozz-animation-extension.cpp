@@ -18,6 +18,7 @@
 #include "ozz/base/io/archive.h"
 #include "ozz/base/io/stream.h"
 #include "ozz/base/log.h"
+#include "ozz/base/span.h"
 #include "ozz/base/containers/vector.h"
 #include "ozz/base/containers/vector_archive.h"
 #include "ozz/base/maths/simd_math.h"
@@ -59,6 +60,8 @@ static uint64_t g_last_time = 0;
 extern bool LoadSkeleton(const char* _filename, ozz::animation::Skeleton* _skeleton);
 extern bool LoadAnimation(const char* _filename, ozz::animation::Animation* _animation);
 extern bool LoadMeshes(const char* _filename, ozz::vector<game::Mesh>* _meshes);
+
+extern bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const ozz::span<ozz::math::Float4x4> _skinning_matrices, const ozz::math::Float4x4 &_transform);
 
 static int LoadOzz(lua_State* L)
 {
@@ -127,32 +130,31 @@ static int LoadOzz(lua_State* L)
     return 1;
 }
 
+const dmBuffer::StreamDeclaration streams_decl[] = {
+    {dmHashString64("position"), dmBuffer::VALUE_TYPE_FLOAT32, 3},
+    {dmHashString64("normal"), dmBuffer::VALUE_TYPE_FLOAT32, 3},
+    {dmHashString64("texcoord0"), dmBuffer::VALUE_TYPE_FLOAT32, 2},
+};
+
 static int SetBufferFromMesh(lua_State* L)
 {
-    DM_LUA_STACK_CHECK(L, 0);
-    dmScript::LuaHBuffer *buffer = dmScript::CheckBuffer(L, 1);
-    const char *streamname = luaL_checkstring(L, 2);
-    
-    int animid = luaL_checknumber(L, 3);
-    int meshid = luaL_checknumber(L, 4);
+    DM_LUA_STACK_CHECK(L, 1);
+    int vertcount = luaL_checknumber(L, 1);
+    int animid = luaL_checknumber(L, 2);
+    int meshid = luaL_checknumber(L, 3);
 
     animObj *anim = g_anims[animid];
-    game::Mesh mesh = anim->meshes[meshid];
+    game::Mesh &mesh = anim->meshes[meshid];
+    dmBuffer::Result r = dmBuffer::Create(vertcount, streams_decl, 3, &mesh.buffer);
 
     float* bytes = 0x0;
     uint32_t count = 0;
     uint32_t components = 0;
     uint32_t stride = 0;
-    dmBuffer::Result r = dmBuffer::GetStream(buffer->m_Buffer, dmHashString64(streamname), (void**)&bytes, &count, &components, &stride);
-
+    r = dmBuffer::GetStream(mesh.buffer, dmHashString64("position"), (void**)&bytes, &count, &components, &stride);
     if(components == 0 || count == 0) return 0;
+    if (r == dmBuffer::RESULT_OK) {
 
-    if(strcmp(streamname, "position") == 0) {
-        size_t indiceslen = mesh.triangle_index_count();
-        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
-        for( size_t i=0; i<indiceslen; i++)
-            idata[i] = mesh.triangle_indices[i];
-        
         size_t floatslen = mesh.vertex_count() * 3;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
         int ctr = 0;
@@ -162,28 +164,23 @@ static int SetBufferFromMesh(lua_State* L)
             }
         }
 
-        if (r == dmBuffer::RESULT_OK) {
-            for (int i = 0; i < count; ++i)
+        for (int i = 0; i < count; ++i)
+        {
+            for (int c = 0; c < components; ++c)
             {
-                for (int c = 0; c < components; ++c)
-                {
-                    bytes[c] = floatdata[idata[i] * components + c];
-                }
-                bytes += stride;
+                bytes[c] = floatdata[mesh.triangle_indices[i] * components + c];
             }
-        } else {
-            // handle error
+            bytes += stride;
         }
-        free(idata);
+
         free(floatdata);
+    } else {
+        // handle error
     }
-
-    if(strcmp(streamname, "normal") == 0) {
-        size_t indiceslen = mesh.triangle_index_count();
-        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
-        for( size_t i=0; i<indiceslen; i++)
-        idata[i] = mesh.triangle_indices[i];
-
+    
+    r = dmBuffer::GetStream(mesh.buffer, dmHashString64("normal"), (void**)&bytes, &count, &components, &stride);
+    if(components == 0 || count == 0) return 0;
+    if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.normal_count() * 3;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
         int ctr = 0;
@@ -198,23 +195,19 @@ static int SetBufferFromMesh(lua_State* L)
             {
                 for (int c = 0; c < components; ++c)
                 {
-                    bytes[c] = floatdata[idata[i] * components + c];
+                    bytes[c] = floatdata[mesh.triangle_indices[i] * components + c];
                 }
                 bytes += stride;
             }
         } else {
             // handle error
         }
-        free(idata);
         free(floatdata);
     }
 
-    if(strcmp(streamname, "texcoord0") == 0) {
-        size_t indiceslen = mesh.triangle_index_count();
-        uint16_t * idata = (uint16_t *)calloc(indiceslen, sizeof(uint16_t));    
-        for( size_t i=0; i<indiceslen; i++)
-            idata[i] = mesh.triangle_indices[i];
-
+    r = dmBuffer::GetStream(mesh.buffer, dmHashString64("texcoord0"), (void**)&bytes, &count, &components, &stride);
+    if(components == 0 || count == 0) return 0;
+    if (r == dmBuffer::RESULT_OK) {
         size_t floatslen = mesh.uv_count() * 2;
         float *floatdata = (float *)calloc(floatslen, sizeof(float));    
         int ctr = 0;
@@ -230,21 +223,22 @@ static int SetBufferFromMesh(lua_State* L)
                 for (int c = 0; c < components; ++c)
                 {
                     if(c == 1) 
-                        bytes[c] = 1.0 - floatdata[idata[i] * components + c];
+                        bytes[c] = 1.0 - floatdata[mesh.triangle_indices[i] * components + c];
                     else
-                        bytes[c] = floatdata[idata[i] * components + c];
+                        bytes[c] = floatdata[mesh.triangle_indices[i] * components + c];
                 }
                 bytes += stride;
             }
         } else {
             // handle error
         }
-        free(idata);
         free(floatdata);
     }    
     
-    r = dmBuffer::ValidateBuffer(buffer->m_Buffer);
-    return 0;
+    dmBuffer::ValidateBuffer(mesh.buffer);
+    dmScript::LuaHBuffer luabuf(mesh.buffer, dmScript::OWNER_C);
+    dmScript::PushBuffer(L, luabuf);
+    return 1;
 }
 
 
@@ -336,34 +330,40 @@ static int LoadMeshes( lua_State *L)
     return 1;
 }
 
-static int DrawSkinnedMesh(lua_State *L)
+int DrawSkinnedMeshInternal( animObj * anim )
 {
-//     int idx = luaL_checknumber(L,1);
-//     if( idx < 0 || idx >= g_anims.size()) {
-//         printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
-//         lua_pushnil(L);
-//         return 1;    
-//     }
-// 
-//     animObj *anim = g_anims[idx];
-//     
-//     // Builds skinning matrices, based on the output of the animation stage.
-//     // The mesh might not use (aka be skinned by) all skeleton joints. We
-//     // use the joint remapping table (available from the mesh object) to
-//     // reorder model-space matrices and build skinning ones.
-//     for (const ozz::sample::Mesh& mesh : animObj->models ) {
-//         for (size_t i = 0; i < mesh.joint_remaps.size(); ++i) {
-//             skinning_matrices_[i] = animObj->models[mesh.joint_remaps[i]] * mesh.inverse_bind_poses[i];
-//         }
-// 
-//         // Renders skin.
-//         success &= _renderer->DrawSkinnedMesh(
-//             mesh, make_span(skinning_matrices_), transform, render_options_);
-//         }
-//     }
+    const ozz::math::Float4x4 transform = ozz::math::Float4x4::identity();
+    
+    // Builds skinning matrices, based on the output of the animation stage.
+    // The mesh might not use (aka be skinned by) all skeleton joints. We
+    // use the joint remapping table (available from the mesh object) to
+    // reorder model-space matrices and build skinning ones.
+    for (const game::Mesh& mesh : anim->meshes) {
+        for (size_t i = 0; i < mesh.joint_remaps.size(); ++i) {
+            anim->skinning_matrices[i] = anim->models[mesh.joint_remaps[i]] * mesh.inverse_bind_poses[i];
+        }
+
+        // Renders skin.
+        DrawDefoldSkinnedMesh(mesh, make_span(anim->skinning_matrices), transform);
+    }
 
     return 0;
 }    
+
+
+static int DrawSkinnedMesh(lua_State *L)
+{
+    int idx = luaL_checknumber(L,1);
+    if( idx < 0 || idx >= g_anims.size()) {
+        printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    animObj *anim = g_anims[idx];
+    DrawSkinnedMeshInternal(anim);
+}
+
 
 static int GetMeshBounds(lua_State *L)
 {
@@ -462,7 +462,8 @@ static const luaL_reg Module_methods[] =
     {"loadmesh", LoadMeshes},
     {"getmeshbounds", GetMeshBounds},
     {"getskinnedbounds", GetSkinnedBounds},
-    {"setbufferfrommesh", SetBufferFromMesh},
+    {"createbuffers", SetBufferFromMesh},
+    {"drawskinnedmesh", DrawSkinnedMesh},
     {0, 0}
 };
 
@@ -512,10 +513,11 @@ static dmExtension::Result OnUpdateozzanim(dmExtension::Params* params)
 {
     double dt = ((double)( dmTime::GetTime() - g_last_time ) / 1000000.0);
     g_last_time = dmTime::GetTime();
-    // printf("Test dt: %g\n", dt);
  
     for(size_t i=0; i<g_anims.size(); ++i)
     {
+        //printf("Test dt: %g  %d\n", dt, (int)i);
+
         animObj *anim = g_anims[i];
         // Updates current animation time.
         anim->controller.Update(anim->animations, dt);
@@ -538,6 +540,8 @@ static dmExtension::Result OnUpdateozzanim(dmExtension::Params* params)
         if (!ltm_job.Run()) {
             dmExtension::RESULT_INIT_ERROR  ;
         }
+
+        bool res = DrawSkinnedMeshInternal(anim);
     }
     return dmExtension::RESULT_OK;
 }
