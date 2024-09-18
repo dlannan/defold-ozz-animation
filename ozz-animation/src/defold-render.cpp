@@ -36,16 +36,16 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
 
     // Reallocate vertex buffer.
     float* vert_bytes = 0x0;
-    uint32_t positions_stride = 8;
+    uint32_t positions_stride = 3;
     
     float* norm_bytes = 0x0;
-    uint32_t normals_stride = 8;
+    uint32_t normals_stride = 3;
 
-    float * bytes = 0x0;
-    uint32_t size = 0;
-    dmBuffer::Result r = dmBuffer::GetBytes(_mesh.buffer, (void**)&bytes, &size);
-    vert_bytes = bytes;
-    norm_bytes = vert_bytes + 3;
+    // This is not good. Need a temp buffer so dont keep allocing (should make one on load - largest vert pool)
+    //  The ozz data is indexed data, whereas the Defold buffer is. Process into this buffer, then copy out.
+    //  In future build, the gltf loader will be used, and vertcount will match defold vertcount.
+    vert_bytes = (float *)calloc( vertex_count * 3, sizeof(float));
+    norm_bytes = (float *)calloc( vertex_count * 3, sizeof(float));
 
     // Iterate mesh parts and fills vbo.
     // Runs a skinning job per mesh part. Triangle indices are shared
@@ -131,6 +131,24 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
 
         processed_vertex_count += part_vertex_count;
     }
-    dmBuffer::ValidateBuffer(_mesh.buffer);
+
+    float * bytes = 0x0;
+    uint32_t size = 0;
+    dmBuffer::Result r = dmBuffer::GetBytes(_mesh.buffer, (void**)&bytes, &size);
+
+    // Copy out to the main buffer. 
+    uint32_t buffcount = size / (8 * sizeof(float)); 
+    for (uint32_t i = 0; i<buffcount; ++i) {
+        for(int j = 0; j < 3; ++j)
+        {
+            bytes[j] = vert_bytes[_mesh.triangle_indices[i] * 3 + j];
+            bytes[j+3] = norm_bytes[_mesh.triangle_indices[i] * 3 + j];
+        }
+        bytes += 8;
+    }
+
+    free(vert_bytes);
+    free(norm_bytes);
+    //dmBuffer::ValidateBuffer(_mesh.buffer);
     return true;
 }
