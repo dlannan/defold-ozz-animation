@@ -9,7 +9,7 @@ embedded_instances {
   children: "model"
   data: "components {\n"
   "  id: \"main\"\n"
-  "  component: \"/main/main.script\"\n"
+  "  component: \"/main/example_ruby.script\"\n"
   "}\n"
   "embedded_components {\n"
   "  id: \"factory\"\n"
@@ -34,6 +34,6 @@ embedded_instances {
   ""
   position {
     y: 1.0
-    z: 4.0
+    z: 7.0
   }
 }

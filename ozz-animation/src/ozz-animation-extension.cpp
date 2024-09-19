@@ -415,6 +415,24 @@ static int UpdateAnimation(lua_State *L)
     return 0;
 }
 
+static int SetAnimationTime(lua_State *L) 
+{
+    int idx = luaL_checknumber(L,1);
+    if( idx < 0 || idx >= g_anims.size()) {
+        printf("[LoadOzz Error] Invalid anim index: %d\n", idx);
+        lua_pushnil(L);
+        return 1;    
+    }
+
+    float ratio = luaL_checknumber(L, 2);
+
+    animObj *anim = g_anims[idx];
+    anim->controller.set_time_ratio(ratio);
+
+    lua_pushnumber(L, ratio);
+    return 1;
+}
+
 // --------------------------------------------------------------------------------------------------------
 
 static int GetMeshBounds(lua_State *L)
@@ -520,6 +538,7 @@ static const luaL_reg Module_methods[] =
     {"createbuffers", SetBufferFromMesh},
     {"updateanimation", UpdateAnimation},
     {"drawskinnedmesh", DrawSkinnedMesh},
+    {"setanimationtime", SetAnimationTime},
     {0, 0}
 };
 

@@ -125,7 +125,6 @@ bool DrawDefoldSkinnedMesh(const game::Mesh &_mesh, const span<math::Float4x4> _
         // Execute the job, which should succeed unless a parameter is invalid.
         if (!skinning_job.Run())
         {
-            printf("Bad juju\n");
             return false;
         }
 

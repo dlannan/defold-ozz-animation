@@ -27,3 +27,9 @@ bundle_identifier = com.defold.example.basic3d
 [ios]
 bundle_identifier = com.defold.example.basic3d
 
+[input]
+game_binding = /builtins/input/all.input_bindingc
+
+[mesh]
+max_count = 10000
+

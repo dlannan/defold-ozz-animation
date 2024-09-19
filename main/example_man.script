@@ -1,0 +1,41 @@
+
+local gogen = require("ozz-animation.assets.gogen")
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	msg.post("@render:", "use_camera_projection")
+	msg.post("camera", "acquire_camera_focus")
+
+	self.objs = {}
+	local RANGE = 7
+	for i=1, 10 do 
+		local anim = ozzanim.loadozz("assets/ozz/ruby_skeleton.ozz", "assets/ozz/ruby_animation.ozz")
+		local meshes = ozzanim.loadmesh(anim, "assets/ozz/ruby_mesh.ozz")
+		
+		local parent = gogen.makeParentGo( "#factory", anim, meshes)
+		-- pprint(ozzanim.getmeshbounds(self.anim))
+		-- pprint(ozzanim.getskinnedbounds(self.anim))
+
+		go.animate(parent.url, "euler.y", go.PLAYBACK_LOOP_FORWARD, 360, go.EASING_INOUTQUAD, 12)
+		go.set_position(vmath.vector3(math.random() * RANGE-RANGE/2, 0.0, math.random() * RANGE-RANGE/2), parent.url)
+		ozzanim.setanimationtime(anim, math.random())
+		table.insert(self.objs, {parent = parent, anim = anim, meshes = meshes})
+	end
+
+	self.profile_enable = false
+end
+
+function update(self, dt)
+	ozzanim.updateanimation()
+	for k,v in ipairs(self.objs) do
+		gogen.drawSkinned(v.parent, v.anim)
+	end
+end
+
+function on_input(self, action_id, action)
+
+	if(action_id == hash("key_1") and action.released) then 
+		self.profile_enable = not self.profile_enable
+		profiler.enable_ui(self.profile_enable)
+	end
+end
