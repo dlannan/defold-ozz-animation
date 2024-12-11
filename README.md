@@ -1,5 +1,15 @@
 # Defold Ozz-animation extension
 
+** Update 11/12/2024 - This is no longer being worked on. **
+
+## Defold Anim Limitations
+
+There are a number of limitations (specifically in runtime) that limit the access and ability to handle meshes as well as appropriately accelerate the performance with shaders. Defold is working on this, but the core structure is not suited to using ozz-animation like this. Due to this and a number of other problems (specifically in runtime) I have decided to develop my own engine/solution which will utilize much of the work Ive done in Defold. 
+
+The new system is here if people are interested: 
+
+https://github.com/dlannan/sokol-luajit/
+
 ** This is under construction - bugs/perf/issues beware! **
 
 ## Why? Defold has animation! 
